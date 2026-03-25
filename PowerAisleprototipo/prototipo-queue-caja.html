@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PowerAisle - Sistema de Planograma</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f3f4f6; color: #1f2937; }
+
+        /* Layout */
+        .app-layout { display: flex; height: 100vh; }
+        .sidebar { width: 260px; min-width: 260px; background: linear-gradient(135deg, #1a1f36, #16213e); color: white; padding: 24px; display: flex; flex-direction: column; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
+        .sidebar-logo { font-size: 24px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+        .sidebar-subtitle { color: #93c5fd; font-size: 13px; margin-bottom: 32px; }
+        .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+        .nav-item { padding: 12px 16px; border-radius: 8px; cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 10px; }
+        .nav-item:hover { background: rgba(255,255,255,0.1); border-left-color: #3b82f6; }
+        .nav-item.active { background: rgba(59,130,246,0.2); border-left-color: #3b82f6; color: #93c5fd; }
+        .sidebar-footer { border-top: 1px solid rgba(147,197,253,0.3); padding-top: 16px; font-size: 12px; color: #93c5fd; line-height: 1.8; }
+
+        .main-content { flex: 1; overflow: auto; padding: 32px; }
+
+        /* Breadcrumb */
+        .breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #6b7280; margin-bottom: 24px; }
+        .breadcrumb-home { font-weight: 600; color: #1f2937; }
+        .breadcrumb-sep { color: #d1d5db; }
+
+        /* Section Header */
+        .section-header { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; padding-bottom: 20px; border-bottom: 2px solid #e5e7eb; }
+        .section-icon { font-size: 36px; }
+        .section-title { font-size: 28px; font-weight: 700; color: #1f2937; }
+        .section-desc { font-size: 14px; color: #6b7280; margin-top: 4px; }
+
+        /* Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
+        .stat-card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; transition: box-shadow 0.2s; }
+        .stat-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .stat-label { font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .stat-value { font-size: 28px; font-weight: 700; color: #1f2937; }
+
+        /* Two column layout */
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
+        @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+        /* Card */
+        .card { background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px; }
+        .card-title { font-size: 16px; font-weight: 600; color: #1f2937; margin-bottom: 20px; }
+
+        /* Bar Chart */
+        .bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+        .bar-label { width: 160px; font-size: 13px; font-weight: 500; flex-shrink: 0; }
+        .bar-track { flex: 1; height: 26px; background: #f3f4f6; border-radius: 4px; overflow: hidden; }
+        .bar-fill { height: 100%; background: linear-gradient(90deg, #3b82f6, #1e40af); border-radius: 4px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; color: white; font-size: 11px; font-weight: 600; min-width: 40px; transition: width 0.5s; }
+
+        /* Pie chart legend */
+        .pie-container { display: flex; flex-direction: column; align-items: center; }
+        .pie-chart { width: 180px; height: 180px; border-radius: 50%; margin-bottom: 20px; }
+        .legend-row { display: flex; justify-content: space-between; width: 100%; padding: 4px 0; font-size: 13px; }
+        .legend-label { color: #6b7280; }
+        .legend-value { font-weight: 600; color: #1f2937; }
+
+        /* Top 10 */
+        .top-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: #f9fafb; border-radius: 8px; margin-bottom: 8px; }
+        .top-rank { width: 30px; font-weight: 700; color: #9ca3af; text-align: center; flex-shrink: 0; }
+        .top-info { flex: 1; margin-left: 12px; }
+        .top-name { font-size: 13px; font-weight: 500; color: #1f2937; }
+        .top-sku { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+        .top-units { font-weight: 700; color: #1f2937; text-align: right; }
+        .top-dept { font-size: 11px; color: #9ca3af; text-align: right; margin-top: 2px; }
+
+        /* Department Section */
+        .dept-header { background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(59,130,246,0.03)); border-left: 4px solid #3b82f6; padding: 16px 20px; cursor: pointer; user-select: none; transition: background 0.2s; display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; border-radius: 0 8px 8px 0; }
+        .dept-header:hover { background: linear-gradient(135deg, rgba(59,130,246,0.14), rgba(59,130,246,0.08)); }
+        .dept-header-left { display: flex; align-items: center; gap: 12px; }
+        .dept-arrow { transition: transform 0.3s; display: inline-block; font-size: 12px; color: #6b7280; }
+        .dept-arrow.collapsed { transform: rotate(-90deg); }
+        .dept-icon { font-size: 24px; }
+        .dept-name { font-size: 17px; font-weight: 600; color: #1f2937; }
+        .dept-count { font-size: 13px; color: #6b7280; margin-left: 8px; }
+
+        /* Product Cards Grid */
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; padding: 16px 0; }
+        .product-card { background: white; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; transition: all 0.2s; cursor: default; }
+        .product-card:hover { box-shadow: 0 8px 20px rgba(0,0,0,0.08); transform: translateY(-2px); border-color: #93c5fd; }
+        .product-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+        .product-name { font-size: 13px; font-weight: 600; color: #1f2937; line-height: 1.4; flex: 1; margin-right: 8px; }
+        .product-sku { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+        .product-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+        .meta-label { font-size: 11px; color: #9ca3af; }
+        .meta-value { font-size: 13px; font-weight: 600; color: #1f2937; }
+        .product-category { font-size: 11px; color: #6b7280; margin-bottom: 10px; }
+        .product-actions { margin-top: auto; }
+
+        /* Zone Badge */
+        .zone-badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .zone-queue { background: #dbeafe; color: #1e40af; }
+        .zone-tdcaja { background: #fee2e2; color: #991b1b; }
+        .zone-ambas { background: #e9d5ff; color: #6b21a8; }
+
+        /* Strategy Tags */
+        .strat-tag { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+        .strat-mantenimiento { background: #dbeafe; color: #1e40af; }
+        .strat-limpieza { background: #dcfce7; color: #15803d; }
+        .strat-frecuente { background: #fed7aa; color: #92400e; }
+        .strat-orden { background: #e9d5ff; color: #6b21a8; }
+        .strat-accesorio { background: #fee2e2; color: #991b1b; }
+        .strat-fijacion { background: #fef3c7; color: #92400e; }
+        .strat-iluminacion { background: #cffafe; color: #164e63; }
+
+        /* Toggle Button */
+        .toggle-btn { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; background: #f9fafb; cursor: pointer; font-size: 12px; font-weight: 500; color: #374151; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .toggle-btn:hover { background: #e5e7eb; border-color: #9ca3af; }
+
+        /* Recommendations */
+        .reco-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px; }
+        .reco-card { padding: 16px; border-radius: 10px; border: 1px solid; }
+        .reco-blue { background: #eff6ff; border-color: #bfdbfe; }
+        .reco-green { background: #f0fdf4; border-color: #bbf7d0; }
+        .reco-purple { background: #faf5ff; border-color: #e9d5ff; }
+        .reco-title { font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+        .reco-text { font-size: 12px; line-height: 1.5; }
+        .reco-blue .reco-title { color: #1e40af; }
+        .reco-blue .reco-text { color: #1e40af; opacity: 0.8; }
+        .reco-green .reco-title { color: #15803d; }
+        .reco-green .reco-text { color: #15803d; opacity: 0.8; }
+        .reco-purple .reco-title { color: #6b21a8; }
+        .reco-purple .reco-text { color: #6b21a8; opacity: 0.8; }
+
+        /* Table */
+        .search-input { width: 100%; padding: 10px 14px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; margin-bottom: 16px; transition: border-color 0.2s, box-shadow 0.2s; }
+        .search-input:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        .filters-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+        .filter-select { padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; background: white; cursor: pointer; }
+        .filter-select:focus { outline: none; border-color: #3b82f6; }
+        .clear-btn { padding: 8px 16px; background: #3b82f6; color: white; border: none; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .clear-btn:hover { background: #2563eb; }
+        .results-count { font-size: 13px; color: #6b7280; margin-bottom: 16px; }
+        .results-count strong { color: #1f2937; }
+
+        .data-table { width: 100%; border-collapse: collapse; }
+        .data-table th { background: #f9fafb; padding: 12px; text-align: left; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e5e7eb; cursor: pointer; user-select: none; white-space: nowrap; }
+        .data-table th:hover { background: #f3f4f6; color: #374151; }
+        .data-table td { padding: 12px; border-bottom: 1px solid #f3f4f6; font-size: 13px; color: #374151; }
+        .data-table tbody tr:hover { background: #f9fafb; }
+        .td-sku { font-weight: 600; color: #3b82f6 !important; }
+        .td-units { font-weight: 700; }
+        .table-wrap { overflow-x: auto; }
+
+        /* Empty State */
+        .empty-state { text-align: center; padding: 48px 20px; color: #9ca3af; }
+        .empty-icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-text { font-weight: 500; }
+        .empty-hint { font-size: 13px; margin-top: 4px; }
+
+        /* Animation */
+        .fade-in { animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Section spacing */
+        .section-gap { margin-bottom: 24px; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useCallback } = React;
+
+        const PRODUCTS = [
+            {dept:"AUTO",cat:"ACEITE PENETRANTE",sku:"1902004",desc:"WD-40 08OZ ACEITE PENETRANTE SPRAY",price:5.99,units:1228,strat:"Mantenimiento rapido"},
+            {dept:"AUTO",cat:"DESENGRASANTES",sku:"11029235",desc:"LIMPIADOR PARA TODO USO 32 OZ. #29-235",price:5.99,units:600,strat:"Mantenimiento rapido"},
+            {dept:"AUTO",cat:"CHAMOIS Y TOALLONES",sku:"11028314",desc:"PANOS DE MICROFIBRAS 14\" 3PZ",price:5.99,units:390,strat:"Limpieza rapida"},
+            {dept:"AUTO",cat:"LIMPIADORES P/TAPIZ",sku:"7584924",desc:"SPRAY LIMPIADOR PARA ASIENTO DE AUTO",price:5.99,units:335,strat:"Mantenimiento rapido"},
+            {dept:"AUTO",cat:"CHAMOIS Y TOALLONES",sku:"155PAMFB07",desc:"PANOS MICROFIBRA 4 PK",price:5.99,units:127,strat:"Limpieza rapida"},
+            {dept:"AUTO",cat:"ACEITE PENETRANTE",sku:"7578231",desc:"LIMPIADOR P/CARBURADOR STP #578-231",price:5.99,units:120,strat:"Mantenimiento rapido"},
+            {dept:"AUTO",cat:"LIMPIADORES P/TAPIZ",sku:"4721008",desc:"SPRAY LIMPIADOR Y PROTECTOR TAPIZ 10OZ",price:5.99,units:113,strat:"Mantenimiento rapido"},
+            {dept:"AUTO",cat:"LIMPIADORES P/TAPIZ",sku:"194A70612",desc:"WIPES LIMPIEZA INTERIOR",price:5.99,units:110,strat:"Limpieza rapida"},
+            {dept:"AUTO",cat:"CHAMOIS Y TOALLONES",sku:"155PACHM01",desc:"CHAMOIS PARA LIMPIEZA",price:5.99,units:76,strat:"Limpieza rapida"},
+            {dept:"AUTO",cat:"VELCRO",sku:"92191373",desc:"TIRA VELCRO CONT.ADHESIVO EXTREMA PK2",price:5.99,units:69,strat:"Soluciones de fijacion"},
+            {dept:"AUTO",cat:"LIQUIDO D/PARABRISAS",sku:"206G90W01",desc:"LIMPIADOR D/PARABRISAS GL",price:5.99,units:56,strat:"Mantenimiento rapido"},
+            {dept:"AUTO",cat:"GRASAS",sku:"430CL100",desc:"LUBRICANTE D/CADENA SPRAY ABRO",price:5.99,units:47,strat:"Mantenimiento rapido"},
+            {dept:"BATERIA DE COCINA",cat:"GUANTES PARA COCINA",sku:"867SLPH4PC4",desc:"GUANTE PORTA OLLAS 4PC PH4PC-4",price:5.99,units:200,strat:"Accesorio telefono/auto"},
+            {dept:"BATERIA DE COCINA",cat:"EMBUDOS Y COLADORES",sku:"136BS24989",desc:"COLADOR DE ALUMINIO D/8\"",price:5.99,units:81,strat:"Orden/pequenos utiles"},
+            {dept:"BATERIA DE COCINA",cat:"PORTA VASOS",sku:"920JJ0666",desc:"SET 6 PORTAVASOS DE ACACIA 10CM",price:5.99,units:58,strat:"Accesorio telefono/auto"},
+            {dept:"BATERIA DE COCINA",cat:"ORGANIZ. VARIADOS",sku:"937R6291",desc:"ORGANIZADOR P/COLGAR COPAS Y TAZAS",price:5.99,units:54,strat:"Orden/pequenos utiles"},
+            {dept:"BATERIA DE COCINA",cat:"UTENSIL. PARA COCINA",sku:"15VB71558",desc:"CLIP MAGNETICO PARA BOLSAS",price:5.99,units:53,strat:"Orden/pequenos utiles"},
+            {dept:"BATERIA DE COCINA",cat:"TOALLAS PARA COCINA",sku:"102C1997",desc:"JGO.DE GUANTE Y AGARRA OLLA DORADO 2PZ",price:5.99,units:35,strat:"Uso frecuente"},
+            {dept:"BATERIA DE COCINA",cat:"TOALLAS PARA COCINA",sku:"102C1994",desc:"TOALLA DE COCINA CREMA 20X28IN",price:5.99,units:26,strat:"Limpieza rapida"},
+            {dept:"BATERIA DE COCINA",cat:"TOALLAS PARA COCINA",sku:"102C1995",desc:"JGO.DE GUANTE Y AGARRA OLLA VERDE 2PZ",price:5.99,units:26,strat:"Uso frecuente"},
+            {dept:"BATERIA DE COCINA",cat:"UTENSIL. PARA COCINA",sku:"1367480",desc:"REPOSADOR P/CUCHARAS D/SILICONA",price:5.99,units:22,strat:"Mantenimiento rapido"},
+            {dept:"BATERIA DE COCINA",cat:"UTENSIL. PARA COCINA",sku:"603CDU972",desc:"CUCHARON D/SILICONA P/COCINA",price:5.99,units:20,strat:"Mantenimiento rapido"},
+            {dept:"BATERIA DE COCINA",cat:"ORGANIZ. DE ALAMBRE",sku:"102HSR30371",desc:"ORGANIZADOR MULTIUSO",price:5.99,units:13,strat:"Orden/pequenos utiles"},
+            {dept:"BATERIA DE COCINA",cat:"ORGANIZ. P/GAVETA",sku:"80658930",desc:"ORGANIZADOR D/GAVETA MULTIUSO",price:5.99,units:12,strat:"Orden/pequenos utiles"},
+            {dept:"BANOS Y ACCESORIOS",cat:"TOALLAS DE CUERPO",sku:"920SF0245",desc:"TOALLA DE BANO TERRY AMARILLO 28X58",price:5.99,units:2171,strat:"Limpieza rapida"},
+            {dept:"BANOS Y ACCESORIOS",cat:"TOALLAS DE CUERPO",sku:"920SF0243",desc:"TOALLA DE BANO TERRY NARANJA 28X58",price:5.99,units:2031,strat:"Limpieza rapida"},
+            {dept:"BANOS Y ACCESORIOS",cat:"TOALLAS DE CUERPO",sku:"920SF0244",desc:"TOALLA DE BANO TERRY ROJO VINO 28X58",price:5.99,units:1554,strat:"Limpieza rapida"},
+            {dept:"BANOS Y ACCESORIOS",cat:"CEPILLO P/LIMP.INODO",sku:"343OC616211",desc:"CEPILLO P/LIMPIAR INODORO",price:5.99,units:213,strat:"Uso frecuente"},
+            {dept:"BANOS Y ACCESORIOS",cat:"TOALLA DE PISO",sku:"804GE1031",desc:"TOALLA DE PISO 18\"X30\" GRIS OSCURO",price:5.99,units:203,strat:"Limpieza rapida"},
+            {dept:"BANOS Y ACCESORIOS",cat:"TOALLA DE PISO",sku:"804GE1023",desc:"TOALLA DE PISO 18\"X30\" GRIS",price:5.99,units:168,strat:"Limpieza rapida"},
+            {dept:"BANOS Y ACCESORIOS",cat:"TOALLAS JUMBO",sku:"804BT2860",desc:"TOALLA PLAYERA 30X60CM DIS. SURTIDA",price:5.99,units:164,strat:"Limpieza rapida"},
+            {dept:"BANOS Y ACCESORIOS",cat:"TOALLA DE PISO",sku:"804K1218",desc:"TOALLA DE PISO CONTEMPO AZUL",price:5.99,units:156,strat:"Limpieza rapida"},
+            {dept:"BANOS Y ACCESORIOS",cat:"ACCES.DECOR. P/BANO",sku:"148AH1087",desc:"PORTA JOYAS TRENDS ROSA",price:5.99,units:131,strat:"Accesorio telefono/auto"},
+            {dept:"BANOS Y ACCESORIOS",cat:"CEPILLO P/LIMP.INODO",sku:"7601683",desc:"CEPILLO PARA LIMPIAR INODORO LIBMAN",price:5.99,units:122,strat:"Uso frecuente"},
+            {dept:"BANOS Y ACCESORIOS",cat:"BASUREROS DE BANO",sku:"137U086701-040",desc:"BASURERO MINI CAN NEGRO",price:5.99,units:113,strat:"Orden/pequenos utiles"},
+            {dept:"BANOS Y ACCESORIOS",cat:"ORGANIZADOR DE BANO",sku:"80660985",desc:"ORGANIZADOR DE BANO CON SUCCION",price:5.99,units:84,strat:"Orden/pequenos utiles"},
+            {dept:"CONSTRUCCION",cat:"CEMENTOS",sku:"1220003",desc:"CEMENTO BLANCO 5KG",price:5.99,units:1691,strat:"Uso frecuente"},
+            {dept:"CONSTRUCCION",cat:"MALLAS DE METAL",sku:"86450613",desc:"MALLA METALICA 1/2\" x 24\" x 5'",price:5.99,units:526,strat:"Uso frecuente"},
+            {dept:"CONSTRUCCION",cat:"PVC",sku:"4264008",desc:"PARED WPC 195x14x2900mm METALICO",price:5.99,units:363,strat:"Uso frecuente"},
+            {dept:"CONSTRUCCION",cat:"ACCESORIOS",sku:"156Q7005",desc:"3PK ESPONJA MULTIUSO EXTRA GRANDE",price:5.99,units:49,strat:"Limpieza rapida"},
+            {dept:"CONSTRUCCION",cat:"LIMPIADOR CERAMICAS",sku:"445LAT6787",desc:"LIMPIADOR PARA PIEDRAS Y AZULEJOS 24oz",price:6.59,units:36,strat:"Mantenimiento rapido"},
+            {dept:"CONSTRUCCION",cat:"ACCESORIOS",sku:"81181098",desc:"ESPONJA PARA REMOVER",price:4.99,units:35,strat:"Limpieza rapida"},
+            {dept:"CONSTRUCCION",cat:"LIMPIADOR CERAMICAS",sku:"81181072",desc:"ESPONJA PARA REMOVER Y PULIR",price:4.99,units:35,strat:"Limpieza rapida"},
+            {dept:"CONSTRUCCION",cat:"CANALETAS",sku:"7100507",desc:"PROTECTOR 6\"x4' ALUMINIO CANALETAS",price:5.99,units:9,strat:"Orden/pequenos utiles"},
+            {dept:"CONSTRUCCION",cat:"CANALETAS",sku:"7128100",desc:"PROTECTOR 6\" x 3' ALUMINIO CANALETAS",price:4.99,units:3,strat:"Orden/pequenos utiles"},
+            {dept:"CONSTRUCCION",cat:"DECORADO GEOMETRICO",sku:"208LF44480",desc:"CERAMICA 44X44 RIMINI",price:6.99,units:0,strat:"Orden/pequenos utiles"},
+            {dept:"CONSTRUCCION",cat:"REGULARES",sku:"1220050B",desc:"PEGAMENTO P/PISO MANO DE PIEDRA MP150",price:6.99,units:0,strat:"Soluciones de fijacion"},
+            {dept:"DECORACION",cat:"ARTICULOS PARA MESA",sku:"KAL7251",desc:"PLATO RAYAS ROJAS 18X18CM",price:5.99,units:18,strat:"Uso frecuente"},
+            {dept:"DECORACION",cat:"VELAS",sku:"KALXET-8573",desc:"SET 4 VELA VERDE 26X3X8CM",price:3.99,units:18,strat:"Uso frecuente"},
+            {dept:"DECORACION",cat:"ARTICULOS DECORACION",sku:"KAL6528",desc:"DECO LUZ LED ROSADO 6.5X6.5CM",price:6.99,units:15,strat:"Iluminacion inmediata"},
+            {dept:"DECORACION",cat:"VELAS",sku:"KAL0070",desc:"SET 4 VELAS COLOR MIX 24X3X10CM",price:4.99,units:11,strat:"Uso frecuente"}
+        ];
+
+        const DEPT_ICONS = { 'AUTO':'🚗', 'BATERIA DE COCINA':'🍳', 'BANOS Y ACCESORIOS':'🚿', 'CONSTRUCCION':'🏗️', 'DECORACION':'🎨' };
+
+        const STRAT_CLASS = {
+            'Mantenimiento rapido':'strat-mantenimiento',
+            'Limpieza rapida':'strat-limpieza',
+            'Uso frecuente':'strat-frecuente',
+            'Orden/pequenos utiles':'strat-orden',
+            'Accesorio telefono/auto':'strat-accesorio',
+            'Soluciones de fijacion':'strat-fijacion',
+            'Iluminacion inmediata':'strat-iluminacion'
+        };
+
+        function ProductCard({ product, zone, onToggle }) {
+            const zoneClass = zone === 'QUEUE' ? 'zone-queue' : zone === 'T de Caja' ? 'zone-tdcaja' : 'zone-ambas';
+            return (
+                <div className="product-card">
+                    <div className="product-top">
+                        <div style={{flex:1, marginRight:8}}>
+                            <div className="product-name">{product.desc}</div>
+                            <div className="product-sku">SKU: {product.sku}</div>
+                        </div>
+                        <span className={"zone-badge " + zoneClass}>{zone}</span>
+                    </div>
+                    <div className="product-meta">
+                        <div><div className="meta-label">Precio</div><div className="meta-value">${product.price.toFixed(2)}</div></div>
+                        <div><div className="meta-label">Unidades</div><div className="meta-value">{product.units.toLocaleString()}</div></div>
+                    </div>
+                    <div className="product-category">{product.cat}</div>
+                    <span className={"strat-tag " + (STRAT_CLASS[product.strat] || '')} style={{marginBottom:10, display:'inline-block'}}>{product.strat}</span>
+                    <button className="toggle-btn" onClick={() => onToggle(product.sku)}>
+                        ↔ Cambiar Zona
+                    </button>
+                </div>
+            );
+        }
+
+        function App() {
+            const [view, setView] = useState('dashboard');
+            const [zones, setZones] = useState({});
+            const [search, setSearch] = useState('');
+            const [fDept, setFDept] = useState('');
+            const [fCat, setFCat] = useState('');
+            const [fStrat, setFStrat] = useState('');
+            const [sortCol, setSortCol] = useState('units');
+            const [sortDir, setSortDir] = useState('desc');
+            const [expanded, setExpanded] = useState({});
+
+            const getZone = (sku) => zones[sku] || 'QUEUE';
+
+            const toggleZone = useCallback((sku) => {
+                setZones(prev => {
+                    const cur = prev[sku] || 'QUEUE';
+                    const next = cur === 'QUEUE' ? 'T de Caja' : cur === 'T de Caja' ? 'Ambas' : 'QUEUE';
+                    return { ...prev, [sku]: next };
+                });
+            }, []);
+
+            const toggleExpand = useCallback((key) => {
+                setExpanded(prev => ({ ...prev, [key]: prev[key] === false ? true : (prev[key] === undefined ? false : !prev[key]) }));
+            }, []);
+
+            const isExpanded = (key) => expanded[key] !== false;
+
+            const stats = useMemo(() => {
+                const total = PRODUCTS.length;
+                const totalUnits = PRODUCTS.reduce((s, p) => s + p.units, 0);
+                const depts = new Set(PRODUCTS.map(p => p.dept)).size;
+                const avgPrice = (PRODUCTS.reduce((s, p) => s + p.price, 0) / total).toFixed(2);
+                return { total, totalUnits, depts, avgPrice };
+            }, []);
+
+            const deptUnits = useMemo(() => {
+                const g = {};
+                PRODUCTS.forEach(p => { g[p.dept] = (g[p.dept] || 0) + p.units; });
+                return Object.entries(g).sort((a, b) => b[1] - a[1]);
+            }, []);
+
+            const stratDist = useMemo(() => {
+                const g = {};
+                PRODUCTS.forEach(p => { g[p.strat] = (g[p.strat] || 0) + 1; });
+                return Object.entries(g).sort((a, b) => b[1] - a[1]);
+            }, []);
+
+            const top10 = useMemo(() => [...PRODUCTS].sort((a, b) => b.units - a.units).slice(0, 10), []);
+
+            const departments = useMemo(() => [...new Set(PRODUCTS.map(p => p.dept))].sort(), []);
+            const categories = useMemo(() => [...new Set(PRODUCTS.map(p => p.cat))].sort(), []);
+            const strategies = useMemo(() => [...new Set(PRODUCTS.map(p => p.strat))].sort(), []);
+
+            const filtered = useMemo(() => {
+                let f = PRODUCTS.filter(p => {
+                    if (search && !p.desc.toLowerCase().includes(search.toLowerCase()) && !p.sku.toLowerCase().includes(search.toLowerCase()) && !p.cat.toLowerCase().includes(search.toLowerCase())) return false;
+                    if (fDept && p.dept !== fDept) return false;
+                    if (fCat && p.cat !== fCat) return false;
+                    if (fStrat && p.strat !== fStrat) return false;
+                    return true;
+                });
+                f.sort((a, b) => {
+                    let av = a[sortCol], bv = b[sortCol];
+                    if (typeof av === 'string') { av = av.toLowerCase(); bv = bv.toLowerCase(); }
+                    return sortDir === 'asc' ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+                });
+                return f;
+            }, [search, fDept, fCat, fStrat, sortCol, sortDir]);
+
+            const handleSort = (col) => {
+                if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                else { setSortCol(col); setSortDir('desc'); }
+            };
+
+            const sortArrow = (col) => sortCol === col ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+
+            // Pie chart gradient
+            const pieGradient = useMemo(() => {
+                const colors = ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#eab308'];
+                const total = stratDist.reduce((s, e) => s + e[1], 0);
+                let deg = 0;
+                const parts = stratDist.map(([, count], i) => {
+                    const start = deg;
+                    deg += (count / total) * 360;
+                    return `${colors[i % colors.length]} ${start}deg ${deg}deg`;
+                });
+                return `conic-gradient(${parts.join(', ')})`;
+            }, [stratDist]);
+
+            const breadcrumbText = { dashboard: 'Panel de Control', queue: 'Fila de Cajas (QUEUE)', tdcaja: 'Punto de Pago (T de Caja)', all: 'Todos los Productos' };
+
+            const navItems = [
+                { id: 'dashboard', label: 'Panel de Control', icon: '📊' },
+                { id: 'queue', label: 'Fila de Cajas', icon: '🛒' },
+                { id: 'tdcaja', label: 'T de Caja', icon: '💳' },
+                { id: 'all', label: 'Todos los Productos', icon: '📦' }
+            ];
+
+            return (
+                <div className="app-layout">
+                    {/* Sidebar */}
+                    <div className="sidebar">
+                        <div className="sidebar-logo">🏪 PowerAisle</div>
+                        <div className="sidebar-subtitle">Sistema de Planograma</div>
+                        <div className="sidebar-nav">
+                            {navItems.map(n => (
+                                <div key={n.id} className={"nav-item" + (view === n.id ? " active" : "")} onClick={() => setView(n.id)}>
+                                    <span>{n.icon}</span> {n.label}
+                                </div>
+                            ))}
+                        </div>
+                        <div className="sidebar-footer">
+                            Total Productos: {stats.total}<br/>
+                            Total Unidades: {stats.totalUnits.toLocaleString()}
+                        </div>
+                    </div>
+
+                    {/* Main */}
+                    <div className="main-content">
+                        <div className="breadcrumb">
+                            <span className="breadcrumb-home">PowerAisle</span>
+                            <span className="breadcrumb-sep">›</span>
+                            <span>{breadcrumbText[view]}</span>
+                        </div>
+
+                        {view === 'dashboard' && (
+                            <div className="fade-in">
+                                <div className="section-header">
+                                    <span className="section-icon">📊</span>
+                                    <div><div className="section-title">Panel de Control</div><div className="section-desc">Analisis general del sistema de planograma</div></div>
+                                </div>
+
+                                <div className="stats-grid">
+                                    <div className="stat-card"><div className="stat-label">Total Productos</div><div className="stat-value">{stats.total}</div></div>
+                                    <div className="stat-card"><div className="stat-label">Total Unidades</div><div className="stat-value">{stats.totalUnits.toLocaleString()}</div></div>
+                                    <div className="stat-card"><div className="stat-label">Departamentos</div><div className="stat-value">{stats.depts}</div></div>
+                                    <div className="stat-card"><div className="stat-label">Precio Promedio</div><div className="stat-value">${stats.avgPrice}</div></div>
+                                </div>
+
+                                <div className="two-col">
+                                    <div className="card">
+                                        <div className="card-title">Unidades por Departamento</div>
+                                        {deptUnits.map(([dept, units]) => {
+                                            const max = deptUnits[0][1];
+                                            return (
+                                                <div key={dept} className="bar-row">
+                                                    <div className="bar-label">{DEPT_ICONS[dept]} {dept}</div>
+                                                    <div className="bar-track">
+                                                        <div className="bar-fill" style={{width: (units/max*100)+'%'}}>{units.toLocaleString()}</div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="card">
+                                        <div className="card-title" style={{textAlign:'center'}}>Distribucion de Estrategias</div>
+                                        <div className="pie-container">
+                                            <div className="pie-chart" style={{background: pieGradient}}></div>
+                                            {stratDist.map(([strat, count]) => (
+                                                <div key={strat} className="legend-row">
+                                                    <span className="legend-label">{strat}</span>
+                                                    <span className="legend-value">{count}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="card">
+                                    <div className="card-title">Top 10 Productos por Unidades</div>
+                                    {top10.map((p, i) => (
+                                        <div key={p.sku} className="top-item">
+                                            <span className="top-rank">{i+1}</span>
+                                            <div className="top-info">
+                                                <div className="top-name">{p.desc}</div>
+                                                <div className="top-sku">SKU: {p.sku}</div>
+                                            </div>
+                                            <div>
+                                                <div className="top-units">{p.units.toLocaleString()}</div>
+                                                <div className="top-dept">{p.dept}</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {view === 'queue' && (
+                            <div className="fade-in">
+                                <div className="section-header">
+                                    <span className="section-icon">🛒</span>
+                                    <div><div className="section-title">Fila de Cajas (QUEUE)</div><div className="section-desc">Productos ubicados en el area de espera - Impulso de compra inmediata</div></div>
+                                </div>
+                                {departments.map(dept => {
+                                    const prods = PRODUCTS.filter(p => p.dept === dept);
+                                    const open = isExpanded('q_'+dept);
+                                    return (
+                                        <div key={dept} className="section-gap">
+                                            <div className="dept-header" onClick={() => toggleExpand('q_'+dept)}>
+                                                <div className="dept-header-left">
+                                                    <span className={"dept-arrow" + (open ? '' : ' collapsed')}>▼</span>
+                                                    <span className="dept-icon">{DEPT_ICONS[dept]}</span>
+                                                    <span className="dept-name">{dept}</span>
+                                                    <span className="dept-count">({prods.length} productos)</span>
+                                                </div>
+                                            </div>
+                                            {open && (
+                                                <div className="products-grid">
+                                                    {prods.map(p => <ProductCard key={p.sku} product={p} zone={getZone(p.sku)} onToggle={toggleZone} />)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {view === 'tdcaja' && (
+                            <div className="fade-in">
+                                <div className="section-header">
+                                    <span className="section-icon">💳</span>
+                                    <div><div className="section-title">Punto de Pago (T de Caja)</div><div className="section-desc">Productos en el mostrador de cajas - Compras impulsivas de ultimo momento</div></div>
+                                </div>
+
+                                <div className="card" style={{marginBottom:24}}>
+                                    <div className="card-title">Recomendaciones de Estrategia</div>
+                                    <div className="reco-grid">
+                                        <div className="reco-card reco-blue">
+                                            <div className="reco-title">✓ Mejor para T de Caja</div>
+                                            <div className="reco-text">Productos de bajo precio (compra impulsiva), articulos pequenos, accesorios de auto/telefono</div>
+                                        </div>
+                                        <div className="reco-card reco-green">
+                                            <div className="reco-title">✓ Excelente Rendimiento</div>
+                                            <div className="reco-text">Toallas, articulos de limpieza rapida, velas, articulos de decoracion</div>
+                                        </div>
+                                        <div className="reco-card reco-purple">
+                                            <div className="reco-title">✓ Rotacion Alta</div>
+                                            <div className="reco-text">Items con alta demanda y bajo ticket promedio</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {strategies.map(strat => {
+                                    const prods = PRODUCTS.filter(p => p.strat === strat);
+                                    const open = isExpanded('s_'+strat);
+                                    return (
+                                        <div key={strat} className="section-gap">
+                                            <div className="dept-header" onClick={() => toggleExpand('s_'+strat)}>
+                                                <div className="dept-header-left">
+                                                    <span className={"dept-arrow" + (open ? '' : ' collapsed')}>▼</span>
+                                                    <span className="dept-name">{strat}</span>
+                                                    <span className="dept-count">({prods.length} productos)</span>
+                                                </div>
+                                            </div>
+                                            {open && (
+                                                <div className="products-grid">
+                                                    {prods.map(p => <ProductCard key={p.sku} product={p} zone={getZone(p.sku)} onToggle={toggleZone} />)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {view === 'all' && (
+                            <div className="fade-in">
+                                <div className="section-header">
+                                    <span className="section-icon">📦</span>
+                                    <div><div className="section-title">Todos los Productos</div><div className="section-desc">Base de datos completa del sistema</div></div>
+                                </div>
+
+                                <div className="card">
+                                    <input className="search-input" placeholder="Buscar por descripcion, SKU o categoria..." value={search} onChange={e => setSearch(e.target.value)} />
+
+                                    <div className="filters-row">
+                                        <select className="filter-select" value={fDept} onChange={e => setFDept(e.target.value)}>
+                                            <option value="">Todos los Departamentos</option>
+                                            {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                        <select className="filter-select" value={fCat} onChange={e => setFCat(e.target.value)}>
+                                            <option value="">Todas las Categorias</option>
+                                            {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                        <select className="filter-select" value={fStrat} onChange={e => setFStrat(e.target.value)}>
+                                            <option value="">Todas las Estrategias</option>
+                                            {strategies.map(s => <option key={s} value={s}>{s}</option>)}
+                                        </select>
+                                        {(search || fDept || fCat || fStrat) && (
+                                            <button className="clear-btn" onClick={() => { setSearch(''); setFDept(''); setFCat(''); setFStrat(''); }}>
+                                                Limpiar filtros ✕
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    <div className="results-count">Mostrando <strong>{filtered.length}</strong> de <strong>{PRODUCTS.length}</strong> productos</div>
+
+                                    <div className="table-wrap">
+                                        <table className="data-table">
+                                            <thead>
+                                                <tr>
+                                                    <th onClick={() => handleSort('sku')}>SKU{sortArrow('sku')}</th>
+                                                    <th onClick={() => handleSort('desc')}>Descripcion{sortArrow('desc')}</th>
+                                                    <th onClick={() => handleSort('dept')}>Departamento{sortArrow('dept')}</th>
+                                                    <th onClick={() => handleSort('cat')}>Categoria{sortArrow('cat')}</th>
+                                                    <th onClick={() => handleSort('price')}>Precio{sortArrow('price')}</th>
+                                                    <th onClick={() => handleSort('units')}>Unidades{sortArrow('units')}</th>
+                                                    <th>Estrategia</th>
+                                                    <th>Ubicacion</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {filtered.length > 0 ? filtered.map(p => {
+                                                    const z = getZone(p.sku);
+                                                    const zc = z === 'QUEUE' ? 'zone-queue' : z === 'T de Caja' ? 'zone-tdcaja' : 'zone-ambas';
+                                                    return (
+                                                        <tr key={p.sku}>
+                                                            <td className="td-sku">{p.sku}</td>
+                                                            <td>{p.desc}</td>
+                                                            <td>{p.dept}</td>
+                                                            <td>{p.cat}</td>
+                                                            <td>${p.price.toFixed(2)}</td>
+                                                            <td className="td-units">{p.units.toLocaleString()}</td>
+                                                            <td><span className={"strat-tag " + (STRAT_CLASS[p.strat] || '')}>{p.strat}</span></td>
+                                                            <td><span className={"zone-badge " + zc}>{z}</span></td>
+                                                        </tr>
+                                                    );
+                                                }) : (
+                                                    <tr><td colSpan="8">
+                                                        <div className="empty-state">
+                                                            <div className="empty-icon">🔍</div>
+                                                            <div className="empty-text">No se encontraron productos</div>
+                                                            <div className="empty-hint">Intenta cambiar los filtros de busqueda</div>
+                                                        </div>
+                                                    </td></tr>
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
